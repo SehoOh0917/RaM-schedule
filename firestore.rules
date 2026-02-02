@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function myUserExists() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveStaff() {
+      return myUserExists()
+        && myUserDoc().data.active == true
+        && myUserDoc().data.role in ['admin', 'staff'];
+    }
+
+    function isAdmin() {
+      return isActiveStaff() && myUserDoc().data.role == 'admin';
+    }
+
+    match /events/{eventId} {
+      allow read, create, update, delete: if isActiveStaff();
+    }
+
+    match /users/{uid} {
+      allow read: if isActiveStaff();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

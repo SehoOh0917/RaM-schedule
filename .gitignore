@@ -1,3 +1,5 @@
 firebase-debug.log
 .idx/
 .vscode/
+.firebase/
+functions/node_modules/

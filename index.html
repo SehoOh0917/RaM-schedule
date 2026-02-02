@@ -1,14 +1,172 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
+  <title>메이크업샵 일정 관리</title>
   <link href='/style.css' rel='stylesheet'>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <div id="authShell" class="auth-shell">
+    <div class="auth-card">
+      <h1>메이크업샵 일정 관리</h1>
+      <p>권한이 있는 직원만 로그인해서 일정 조회/작성/수정이 가능합니다.</p>
+      <form id="loginForm" class="auth-form">
+        <label for="email">이메일</label>
+        <input id="email" name="email" type="email" autocomplete="username" required />
+
+        <label for="password">비밀번호</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+        <button type="submit">로그인</button>
+      </form>
+      <p class="hint">Firebase Authentication에 등록된 직원 계정으로 로그인하세요.</p>
+      <p id="authError" class="error hidden"></p>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div>
+        <h2>메이크업샵 일정 관리</h2>
+        <p id="userMeta"></p>
+      </div>
+      <div class="top-actions">
+        <button id="printBtn" class="secondary">현재 보기 인쇄</button>
+        <button id="logoutBtn" class="ghost">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="form-panel">
+        <h3>일정 입력 / 수정</h3>
+        <form id="scheduleForm" class="schedule-form">
+          <input id="eventId" type="hidden" />
+
+          <div class="row two">
+            <div>
+              <label for="date">날짜</label>
+              <input id="date" type="date" required />
+            </div>
+            <div>
+              <label for="time">시간</label>
+              <input id="time" type="time" required />
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label for="serviceType">구분</label>
+              <select id="serviceType" required>
+                <option value="">선택</option>
+                <option value="헤어">헤어</option>
+                <option value="메이크업">메이크업</option>
+                <option value="헤어+메이크업">헤어+메이크업</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div>
+              <label for="reserverType">예약자</label>
+              <select id="reserverType" required>
+                <option value="">선택</option>
+                <option value="신부">신부</option>
+                <option value="신랑">신랑</option>
+                <option value="혼주">혼주</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label for="brideContact">연락처(신부)</label>
+              <input id="brideContact" type="tel" placeholder="010-0000-0000" />
+            </div>
+            <div>
+              <label for="groomContact">연락처(신랑)</label>
+              <input id="groomContact" type="tel" placeholder="010-0000-0000" />
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="assignee">담당자</label>
+            <input id="assignee" list="assigneeList" placeholder="예: 지민" required />
+            <datalist id="assigneeList"></datalist>
+          </div>
+
+          <div class="row">
+            <label for="notes">특이사항</label>
+            <textarea id="notes" rows="3" placeholder="알레르기, 준비물, 요청사항 등"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit">저장</button>
+            <button id="resetBtn" type="button" class="ghost">입력 초기화</button>
+            <button id="deleteBtn" type="button" class="danger hidden">삭제</button>
+          </div>
+        </form>
+
+        <section id="adminPanel" class="admin-panel hidden">
+          <h3>직원 계정 관리 (관리자 전용)</h3>
+          <form id="staffForm" class="schedule-form admin-form">
+            <div class="row">
+              <label for="staffName">이름</label>
+              <input id="staffName" type="text" placeholder="예: 민지" required />
+            </div>
+            <div class="row">
+              <label for="staffEmail">이메일</label>
+              <input id="staffEmail" type="email" placeholder="staff@shop.com" required />
+            </div>
+            <div class="row two">
+              <div>
+                <label for="staffRole">권한</label>
+                <select id="staffRole" required>
+                  <option value="staff">staff</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
+              <div>
+                <label for="staffPassword">초기 비밀번호</label>
+                <input id="staffPassword" type="text" value="1234" required />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit">직원 초대(계정 생성)</button>
+            </div>
+          </form>
+
+          <div id="staffManageError" class="error hidden"></div>
+          <div id="staffTableWrap" class="staff-table-wrap"></div>
+        </section>
+      </section>
+
+      <section class="schedule-panel">
+        <div class="toolbar">
+          <div class="view-switch">
+            <button data-view="month" class="view-btn active">월간</button>
+            <button data-view="week" class="view-btn">주간</button>
+            <button data-view="day" class="view-btn">일간</button>
+          </div>
+          <div class="date-nav">
+            <button id="prevBtn" class="secondary">이전</button>
+            <button id="todayBtn" class="secondary">오늘</button>
+            <button id="nextBtn" class="secondary">다음</button>
+          </div>
+          <div>
+            <label for="staffFilter">담당자별 보기</label>
+            <select id="staffFilter">
+              <option value="all">전체 담당자</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 id="periodTitle"></h3>
+        <div id="scheduleView"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/firebase-config.js"></script>
+  <script defer type="module" src="/main.js"></script>
 </body>
 </html>
