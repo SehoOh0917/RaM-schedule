@@ -401,11 +401,35 @@ function subscribeEvents() {
 
 function subscribeUsers() {
   if (state.unsubUsers) state.unsubUsers();
-  state.unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
-    state.users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderUserManager();
-    updateStaffOptions();
-  });
+  if (isAdmin()) {
+    state.unsubUsers = onSnapshot(
+      collection(db, "users"),
+      (snap) => {
+        state.users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        renderUserManager();
+        updateStaffOptions();
+      },
+      (error) => {
+        console.error(error);
+        setManageError(normalizeFirebaseError(error));
+      }
+    );
+    return;
+  }
+
+  // Staff accounts can read only their own profile document by rules.
+  state.unsubUsers = onSnapshot(
+    doc(db, "users", state.currentUser.uid),
+    (snapshot) => {
+      state.users = snapshot.exists() ? [{ id: snapshot.id, ...snapshot.data() }] : [];
+      renderUserManager();
+      updateStaffOptions();
+    },
+    (error) => {
+      console.error(error);
+      setManageError(normalizeFirebaseError(error));
+    }
+  );
 }
 
 async function loadMyProfile(uid) {

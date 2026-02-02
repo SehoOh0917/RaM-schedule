@@ -28,7 +28,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isActiveStaff();
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
       allow create, update, delete: if isAdmin();
     }
   }
