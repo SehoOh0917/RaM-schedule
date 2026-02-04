@@ -150,6 +150,7 @@ function setAuthView(isLoggedIn) {
 }
 
 function populateTimeHourOptions() {
+  if (timeHourInput.options.length > 0) return;
   const options = Array.from({ length: 24 }, (_, index) => {
     const displayHour = index + 1;
     const valueHour = displayHour === 24 ? "00" : String(displayHour).padStart(2, "0");
