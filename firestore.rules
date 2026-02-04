@@ -14,9 +14,10 @@ service cloud.firestore {
     }
 
     function isActiveStaff() {
+      let user = myUserDoc().data;
       return myUserExists()
-        && myUserDoc().data.active == true
-        && (!('role' in myUserDoc().data) || myUserDoc().data.role in ['admin', 'staff']);
+        && (!('active' in user) || user.active == true)
+        && (!('role' in user) || user.role in ['admin', 'staff']);
     }
 
     function isAdmin() {
