@@ -16,7 +16,7 @@ service cloud.firestore {
     function isActiveStaff() {
       return myUserExists()
         && myUserDoc().data.active == true
-        && myUserDoc().data.role in ['admin', 'staff'];
+        && (!('role' in myUserDoc().data) || myUserDoc().data.role in ['admin', 'staff']);
     }
 
     function isAdmin() {

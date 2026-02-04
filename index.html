@@ -32,7 +32,7 @@
         <p id="userMeta"></p>
       </div>
       <div class="top-actions">
-        <button id="printBtn" class="secondary">월·주·일간 인쇄</button>
+        <button id="printBtn" class="secondary">현재 보기 1페이지 인쇄</button>
         <button id="logoutBtn" class="ghost">로그아웃</button>
       </div>
     </header>
@@ -49,8 +49,14 @@
               <input id="date" type="date" required />
             </div>
             <div>
-              <label for="time">시간</label>
-              <input id="time" type="time" step="1800" required />
+              <label for="timeHour">시간</label>
+              <div class="time-selects">
+                <select id="timeHour" required></select>
+                <select id="timeMinute" required>
+                  <option value="00">00분</option>
+                  <option value="30">30분</option>
+                </select>
+              </div>
             </div>
           </div>
 

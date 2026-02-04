@@ -13,8 +13,6 @@ import {
   getDoc,
   getFirestore,
   onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
   updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -44,6 +42,7 @@ const state = {
   unsubEvents: null,
   unsubUsers: null,
 };
+let eventsErrorNotified = false;
 
 const authShell = document.getElementById("authShell");
 const appShell = document.getElementById("appShell");
@@ -54,7 +53,8 @@ const userMeta = document.getElementById("userMeta");
 const scheduleForm = document.getElementById("scheduleForm");
 const eventIdInput = document.getElementById("eventId");
 const dateInput = document.getElementById("date");
-const timeInput = document.getElementById("time");
+const timeHourInput = document.getElementById("timeHour");
+const timeMinuteInput = document.getElementById("timeMinute");
 const serviceTypeInput = document.getElementById("serviceType");
 const reserverTypeInput = document.getElementById("reserverType");
 const brideNameInput = document.getElementById("brideName");
@@ -149,17 +149,42 @@ function setAuthView(isLoggedIn) {
   appShell.classList.toggle("hidden", !isLoggedIn);
 }
 
+function populateTimeHourOptions() {
+  timeHourInput.innerHTML = Array.from({ length: 24 }, (_, hour) => {
+    const value = String(hour).padStart(2, "0");
+    return `<option value="${value}">${value}시</option>`;
+  }).join("");
+}
+
+function getSelectedTime() {
+  return `${timeHourInput.value}:${timeMinuteInput.value}`;
+}
+
+function setSelectedTime(timeValue) {
+  const [hour = "09", minute = "00"] = String(timeValue || "").split(":");
+  timeHourInput.value = /^\d{2}$/.test(hour) ? hour : "09";
+  timeMinuteInput.value = minute === "30" ? "30" : "00";
+}
+
+function getRoundedHalfHourTime() {
+  const now = new Date();
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = now.getMinutes() >= 30 ? "30" : "00";
+  return `${hour}:${minute}`;
+}
+
 function resetForm() {
   scheduleForm.reset();
   eventIdInput.value = "";
   deleteBtn.classList.add("hidden");
   dateInput.value = formatDate(new Date());
+  setSelectedTime(getRoundedHalfHourTime());
 }
 
 function fillForm(event) {
   eventIdInput.value = event.id;
   dateInput.value = event.date;
-  timeInput.value = event.time;
+  setSelectedTime(event.time);
   serviceTypeInput.value = event.serviceType;
   reserverTypeInput.value = event.reserverType;
   brideNameInput.value = event.brideName || "";
@@ -269,65 +294,55 @@ function formatEventPrintLine(event) {
   return `${event.time} ${event.serviceType} (${event.assignee}) - ${renderEventNames(event)}`;
 }
 
-function buildPrintLines(events, limit, withDate = false) {
-  const sorted = [...events].sort(byDateTimeAsc);
-  const visible = sorted.slice(0, limit);
-  const rows = visible
-    .map((event) => {
-      const prefix = withDate ? `${event.date} · ` : "";
-      return `<div class="print-line">${escapeHTML(prefix + formatEventPrintLine(event))}</div>`;
-    })
-    .join("");
-
-  if (!sorted.length) {
-    return '<div class="print-line">등록된 일정 없음</div>';
+function formatPrintTitle() {
+  if (state.currentView === "month") {
+    const monthStart = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
+    return `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월 월간 일정`;
   }
-  if (sorted.length <= limit) {
-    return rows;
+  if (state.currentView === "week") {
+    const { start, end } = getWeekRange(state.focusDate);
+    return `${formatDate(start)} ~ ${formatDate(end)} 주간 일정`;
   }
-  return `${rows}<div class="print-line">... 외 ${sorted.length - limit}건</div>`;
+  return `${formatKoreanDate(state.focusDate)} 일간 일정`;
 }
 
-function renderPrintAllViews() {
-  const filteredEvents = getVisibleEvents();
-  const monthStart = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
-  const monthEnd = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth() + 1, 0);
-  const weekRange = getWeekRange(state.focusDate);
+function getPrintEvents(filteredEvents) {
+  if (state.currentView === "month") {
+    const start = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
+    const end = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth() + 1, 0);
+    return filteredEvents.filter((event) => event.date >= formatDate(start) && event.date <= formatDate(end));
+  }
+  if (state.currentView === "week") {
+    const { start, end } = getWeekRange(state.focusDate);
+    return filteredEvents.filter((event) => event.date >= formatDate(start) && event.date <= formatDate(end));
+  }
   const dayKey = formatDate(state.focusDate);
-  const PRINT_LIMIT_MONTH = 18;
-  const PRINT_LIMIT_WEEK = 18;
-  const PRINT_LIMIT_DAY = 14;
-  const monthEvents = filteredEvents.filter((event) => event.date >= formatDate(monthStart) && event.date <= formatDate(monthEnd));
-  const weekEvents = filteredEvents.filter(
-    (event) => event.date >= formatDate(weekRange.start) && event.date <= formatDate(weekRange.end)
-  );
-  const dayEvents = filteredEvents.filter((event) => event.date === dayKey);
+  return filteredEvents.filter((event) => event.date === dayKey);
+}
 
-  const printRoot = document.getElementById("printAllViews") || document.createElement("section");
-  printRoot.id = "printAllViews";
-  printRoot.className = "print-all-views";
+function renderPrintCurrentView() {
+  const filteredEvents = getVisibleEvents();
+  const printEvents = getPrintEvents(filteredEvents).sort(byDateTimeAsc);
+  const lines =
+    printEvents.length > 0
+      ? printEvents
+          .map((event) => `<div class="print-line">${escapeHTML(`${event.date} · ${formatEventPrintLine(event)}`)}</div>`)
+          .join("")
+      : '<div class="print-line">등록된 일정 없음</div>';
+
+  const printRoot = document.getElementById("printCurrentView") || document.createElement("section");
+  printRoot.id = "printCurrentView";
+  printRoot.className = `print-current-view ${state.currentView}`;
   printRoot.innerHTML = `
     <h2>라엠 메이크업 일정관리</h2>
+    <h3>${escapeHTML(formatPrintTitle())}</h3>
     <div class="print-meta">출력 기준일: ${formatKoreanDate(new Date())}</div>
-    <div class="print-grid">
-      <section class="print-section">
-        <h3>월간 일정 (${formatDate(monthStart)} ~ ${formatDate(monthEnd)})</h3>
-        ${buildPrintLines(monthEvents, PRINT_LIMIT_MONTH, true)}
-      </section>
-      <section class="print-section">
-        <h3>주간 일정 (${formatDate(weekRange.start)} ~ ${formatDate(weekRange.end)})</h3>
-        ${buildPrintLines(weekEvents, PRINT_LIMIT_WEEK, true)}
-      </section>
-      <section class="print-section">
-        <h3>일간 일정 (${escapeHTML(dayKey)})</h3>
-        ${buildPrintLines(dayEvents, PRINT_LIMIT_DAY, false)}
-      </section>
-    </div>
+    <section class="print-section">${lines}</section>
   `;
 
   if (!printRoot.parentNode) appShell.append(printRoot);
-  document.body.classList.add("printing-all-views");
-  const cleanup = () => document.body.classList.remove("printing-all-views");
+  document.body.classList.add("printing-current-view");
+  const cleanup = () => document.body.classList.remove("printing-current-view");
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
 }
@@ -497,11 +512,21 @@ function unsubscribeAll() {
 
 function subscribeEvents() {
   if (state.unsubEvents) state.unsubEvents();
-  const q = query(collection(db, "events"), orderBy("date"), orderBy("time"));
-  state.unsubEvents = onSnapshot(q, (snap) => {
-    state.events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderView();
-  });
+  state.unsubEvents = onSnapshot(
+    collection(db, "events"),
+    (snap) => {
+      eventsErrorNotified = false;
+      state.events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderView();
+    },
+    (error) => {
+      console.error(error);
+      if (!eventsErrorNotified) {
+        eventsErrorNotified = true;
+        alert(`일정 불러오기 실패: ${normalizeFirebaseError(error)}`);
+      }
+    }
+  );
 }
 
 function subscribeUsers() {
@@ -550,6 +575,7 @@ async function handleAuthUser(user) {
     state.events = [];
     state.users = [];
     state.focusDate = new Date();
+    state.selectedStaff = "all";
     setCurrentView("month", false);
     unsubscribeAll();
     setAuthView(false);
@@ -575,6 +601,7 @@ async function handleAuthUser(user) {
 
     setAuthView(true);
     state.focusDate = new Date();
+    state.selectedStaff = "all";
     setCurrentView("month", false);
     userMeta.textContent = `${state.currentUser.name} (${state.currentUser.role}) 로그인`;
     hideAuthError();
@@ -672,7 +699,7 @@ function bindEvents() {
     const payload = {
       id: eventIdInput.value || undefined,
       date: dateInput.value,
-      time: timeInput.value,
+      time: getSelectedTime(),
       serviceType: serviceTypeInput.value,
       reserverType: reserverTypeInput.value,
       brideName: brideNameInput.value.trim(),
@@ -768,7 +795,7 @@ function bindEvents() {
     state.selectedStaff = staffFilter.value;
     renderView();
   });
-  printBtn.addEventListener("click", () => renderPrintAllViews());
+  printBtn.addEventListener("click", () => renderPrintCurrentView());
 
   scheduleView.addEventListener("click", (event) => {
     const target = event.target;
@@ -837,6 +864,7 @@ function bindEvents() {
 }
 
 function boot() {
+  populateTimeHourOptions();
   bindEvents();
   onAuthStateChanged(auth, handleAuthUser);
 }
