@@ -177,6 +177,19 @@ function getVisibleEvents() {
   return events.filter((event) => event.assignee === state.selectedStaff);
 }
 
+function upsertLocalEvent(event) {
+  const index = state.events.findIndex((item) => item.id === event.id);
+  if (index >= 0) {
+    state.events[index] = event;
+    return;
+  }
+  state.events.push(event);
+}
+
+function removeLocalEvent(id) {
+  state.events = state.events.filter((event) => event.id !== id);
+}
+
 function getUniqueStaff() {
   const activeUsers = state.users.filter((user) => user.active).map((user) => user.name);
   const fromEvents = state.events.map((event) => event.assignee).filter(Boolean);
@@ -608,10 +621,10 @@ async function upsertEvent(payload) {
       updatedByUid: state.currentUser.uid,
       updatedByName: state.currentUser.name,
     });
-    return;
+    return payload.id;
   }
 
-  await addDoc(collection(db, "events"), {
+  const created = await addDoc(collection(db, "events"), {
     date: payload.date,
     time: payload.time,
     serviceType: payload.serviceType,
@@ -629,6 +642,7 @@ async function upsertEvent(payload) {
     updatedByUid: state.currentUser.uid,
     updatedByName: state.currentUser.name,
   });
+  return created.id;
 }
 
 async function removeEvent(id) {
@@ -675,11 +689,47 @@ function bindEvents() {
       return;
     }
 
+    const previousEvents = [...state.events];
+    const tempId = payload.id || `temp-${Date.now()}`;
+    upsertLocalEvent({
+      id: tempId,
+      date: payload.date,
+      time: payload.time,
+      serviceType: payload.serviceType,
+      reserverType: payload.reserverType,
+      brideName: payload.brideName,
+      groomName: payload.groomName,
+      brideContact: payload.brideContact,
+      groomContact: payload.groomContact,
+      assignee: payload.assignee,
+      notes: payload.notes,
+    });
+    state.focusDate = new Date(payload.date);
+    renderView();
+
     try {
-      await upsertEvent(payload);
-      state.focusDate = new Date(payload.date);
+      const savedId = await upsertEvent(payload);
+      if (!payload.id && savedId !== tempId) {
+        removeLocalEvent(tempId);
+        upsertLocalEvent({
+          id: savedId,
+          date: payload.date,
+          time: payload.time,
+          serviceType: payload.serviceType,
+          reserverType: payload.reserverType,
+          brideName: payload.brideName,
+          groomName: payload.groomName,
+          brideContact: payload.brideContact,
+          groomContact: payload.groomContact,
+          assignee: payload.assignee,
+          notes: payload.notes,
+        });
+        renderView();
+      }
       resetForm();
     } catch (error) {
+      state.events = previousEvents;
+      renderView();
       alert(normalizeFirebaseError(error));
     }
   });
@@ -689,10 +739,15 @@ function bindEvents() {
   deleteBtn.addEventListener("click", async () => {
     const id = eventIdInput.value;
     if (!id) return;
+    const previousEvents = [...state.events];
+    removeLocalEvent(id);
+    renderView();
     try {
       await removeEvent(id);
       resetForm();
     } catch (error) {
+      state.events = previousEvents;
+      renderView();
       alert(normalizeFirebaseError(error));
     }
   });
