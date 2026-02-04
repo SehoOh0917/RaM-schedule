@@ -150,10 +150,12 @@ function setAuthView(isLoggedIn) {
 }
 
 function populateTimeHourOptions() {
-  timeHourInput.innerHTML = Array.from({ length: 24 }, (_, hour) => {
-    const value = String(hour).padStart(2, "0");
-    return `<option value="${value}">${value}시</option>`;
-  }).join("");
+  const options = Array.from({ length: 24 }, (_, index) => {
+    const displayHour = index + 1;
+    const valueHour = displayHour === 24 ? "00" : String(displayHour).padStart(2, "0");
+    return `<option value="${valueHour}">${displayHour}시</option>`;
+  });
+  timeHourInput.innerHTML = options.join("");
 }
 
 function getSelectedTime() {
