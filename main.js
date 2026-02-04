@@ -57,6 +57,8 @@ const dateInput = document.getElementById("date");
 const timeInput = document.getElementById("time");
 const serviceTypeInput = document.getElementById("serviceType");
 const reserverTypeInput = document.getElementById("reserverType");
+const brideNameInput = document.getElementById("brideName");
+const groomNameInput = document.getElementById("groomName");
 const brideContactInput = document.getElementById("brideContact");
 const groomContactInput = document.getElementById("groomContact");
 const assigneeInput = document.getElementById("assignee");
@@ -160,6 +162,8 @@ function fillForm(event) {
   timeInput.value = event.time;
   serviceTypeInput.value = event.serviceType;
   reserverTypeInput.value = event.reserverType;
+  brideNameInput.value = event.brideName || "";
+  groomNameInput.value = event.groomName || "";
   brideContactInput.value = event.brideContact || "";
   groomContactInput.value = event.groomContact || "";
   assigneeInput.value = event.assignee;
@@ -218,18 +222,101 @@ function isSameDate(d1, d2) {
   return formatDate(d1) === formatDate(d2);
 }
 
+function isHalfHourTime(timeValue) {
+  const minute = Number(String(timeValue).split(":")[1] || "0");
+  return minute === 0 || minute === 30;
+}
+
+function renderEventNames(event) {
+  const names = [event.brideName, event.groomName].filter(Boolean);
+  return names.length ? names.join(" / ") : "-";
+}
+
+function setCurrentView(view, shouldRender = true) {
+  state.currentView = view;
+  viewButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+  if (shouldRender) renderView();
+}
+
 function eventRowHTML(event) {
   const contacts = [event.brideContact, event.groomContact].filter(Boolean).join(" / ");
   return `
     <article class="event-row" data-id="${event.id}">
       <div class="event-main">
-        <span>${escapeHTML(event.time)} · ${escapeHTML(event.serviceType)}</span>
-        <span>${escapeHTML(event.assignee)}</span>
+        <span>${escapeHTML(event.time)} · ${escapeHTML(event.serviceType)} · ${escapeHTML(event.assignee)}</span>
       </div>
-      <div class="event-sub">예약자: ${escapeHTML(event.reserverType)}${contacts ? ` · 연락처: ${escapeHTML(contacts)}` : ""}</div>
+      <div class="event-sub">예약자: ${escapeHTML(event.reserverType)} · 이름(신부/신랑): ${escapeHTML(renderEventNames(event))}</div>
+      <div class="event-sub">연락처(신부/신랑): ${contacts ? escapeHTML(contacts) : "-"}</div>
       ${event.notes ? `<div class="event-sub">특이사항: ${escapeHTML(event.notes)}</div>` : ""}
     </article>
   `;
+}
+
+function formatEventPrintLine(event) {
+  return `${event.time} ${event.serviceType} (${event.assignee}) - ${renderEventNames(event)}`;
+}
+
+function buildPrintLines(events, limit, withDate = false) {
+  const sorted = [...events].sort(byDateTimeAsc);
+  const visible = sorted.slice(0, limit);
+  const rows = visible
+    .map((event) => {
+      const prefix = withDate ? `${event.date} · ` : "";
+      return `<div class="print-line">${escapeHTML(prefix + formatEventPrintLine(event))}</div>`;
+    })
+    .join("");
+
+  if (!sorted.length) {
+    return '<div class="print-line">등록된 일정 없음</div>';
+  }
+  if (sorted.length <= limit) {
+    return rows;
+  }
+  return `${rows}<div class="print-line">... 외 ${sorted.length - limit}건</div>`;
+}
+
+function renderPrintAllViews() {
+  const filteredEvents = getVisibleEvents();
+  const monthStart = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
+  const monthEnd = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth() + 1, 0);
+  const weekRange = getWeekRange(state.focusDate);
+  const dayKey = formatDate(state.focusDate);
+  const PRINT_LIMIT_MONTH = 18;
+  const PRINT_LIMIT_WEEK = 18;
+  const PRINT_LIMIT_DAY = 14;
+  const monthEvents = filteredEvents.filter((event) => event.date >= formatDate(monthStart) && event.date <= formatDate(monthEnd));
+  const weekEvents = filteredEvents.filter(
+    (event) => event.date >= formatDate(weekRange.start) && event.date <= formatDate(weekRange.end)
+  );
+  const dayEvents = filteredEvents.filter((event) => event.date === dayKey);
+
+  const printRoot = document.getElementById("printAllViews") || document.createElement("section");
+  printRoot.id = "printAllViews";
+  printRoot.className = "print-all-views";
+  printRoot.innerHTML = `
+    <h2>라엠 메이크업 일정관리</h2>
+    <div class="print-meta">출력 기준일: ${formatKoreanDate(new Date())}</div>
+    <div class="print-grid">
+      <section class="print-section">
+        <h3>월간 일정 (${formatDate(monthStart)} ~ ${formatDate(monthEnd)})</h3>
+        ${buildPrintLines(monthEvents, PRINT_LIMIT_MONTH, true)}
+      </section>
+      <section class="print-section">
+        <h3>주간 일정 (${formatDate(weekRange.start)} ~ ${formatDate(weekRange.end)})</h3>
+        ${buildPrintLines(weekEvents, PRINT_LIMIT_WEEK, true)}
+      </section>
+      <section class="print-section">
+        <h3>일간 일정 (${escapeHTML(dayKey)})</h3>
+        ${buildPrintLines(dayEvents, PRINT_LIMIT_DAY, false)}
+      </section>
+    </div>
+  `;
+
+  if (!printRoot.parentNode) appShell.append(printRoot);
+  document.body.classList.add("printing-all-views");
+  const cleanup = () => document.body.classList.remove("printing-all-views");
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
 }
 
 function renderMonthView(filteredEvents) {
@@ -254,7 +341,12 @@ function renderMonthView(filteredEvents) {
       const muted = cursor.getMonth() !== monthStart.getMonth();
       const chips = events
         .slice(0, 3)
-        .map((event) => `<div class="event-chip" data-id="${event.id}">${escapeHTML(event.time)} ${escapeHTML(event.assignee)}</div>`)
+        .map(
+          (event) =>
+            `<div class="event-chip" data-id="${event.id}">${escapeHTML(event.time)} ${escapeHTML(event.assignee)}${
+              event.brideName ? ` · ${escapeHTML(event.brideName)}` : ""
+            }</div>`
+        )
         .join("");
       cells.push(`
         <div class="date-cell ${muted ? "muted" : ""}">
@@ -444,6 +536,8 @@ async function handleAuthUser(user) {
     state.currentUser = null;
     state.events = [];
     state.users = [];
+    state.focusDate = new Date();
+    setCurrentView("month", false);
     unsubscribeAll();
     setAuthView(false);
     hideAuthError();
@@ -467,9 +561,12 @@ async function handleAuthUser(user) {
     };
 
     setAuthView(true);
+    state.focusDate = new Date();
+    setCurrentView("month", false);
     userMeta.textContent = `${state.currentUser.name} (${state.currentUser.role}) 로그인`;
     hideAuthError();
     resetForm();
+    renderView();
     subscribeEvents();
     subscribeUsers();
     renderUserManager();
@@ -501,6 +598,8 @@ async function upsertEvent(payload) {
       time: payload.time,
       serviceType: payload.serviceType,
       reserverType: payload.reserverType,
+      brideName: payload.brideName,
+      groomName: payload.groomName,
       brideContact: payload.brideContact,
       groomContact: payload.groomContact,
       assignee: payload.assignee,
@@ -517,6 +616,8 @@ async function upsertEvent(payload) {
     time: payload.time,
     serviceType: payload.serviceType,
     reserverType: payload.reserverType,
+    brideName: payload.brideName,
+    groomName: payload.groomName,
     brideContact: payload.brideContact,
     groomContact: payload.groomContact,
     assignee: payload.assignee,
@@ -560,6 +661,8 @@ function bindEvents() {
       time: timeInput.value,
       serviceType: serviceTypeInput.value,
       reserverType: reserverTypeInput.value,
+      brideName: brideNameInput.value.trim(),
+      groomName: groomNameInput.value.trim(),
       brideContact: brideContactInput.value.trim(),
       groomContact: groomContactInput.value.trim(),
       assignee: assigneeInput.value.trim(),
@@ -567,6 +670,10 @@ function bindEvents() {
     };
 
     if (!payload.date || !payload.time || !payload.serviceType || !payload.reserverType || !payload.assignee) return;
+    if (!isHalfHourTime(payload.time)) {
+      alert("시간의 분 단위는 00분 또는 30분만 입력할 수 있습니다.");
+      return;
+    }
 
     try {
       await upsertEvent(payload);
@@ -592,9 +699,7 @@ function bindEvents() {
 
   viewButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      state.currentView = button.dataset.view;
-      viewButtons.forEach((item) => item.classList.toggle("active", item === button));
-      renderView();
+      setCurrentView(button.dataset.view);
     });
   });
 
@@ -608,7 +713,7 @@ function bindEvents() {
     state.selectedStaff = staffFilter.value;
     renderView();
   });
-  printBtn.addEventListener("click", () => window.print());
+  printBtn.addEventListener("click", () => renderPrintAllViews());
 
   scheduleView.addEventListener("click", (event) => {
     const target = event.target;

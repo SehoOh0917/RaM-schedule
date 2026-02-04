@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>메이크업샵 일정 관리</title>
+  <title>라엠 메이크업 일정관리</title>
   <link href='/style.css' rel='stylesheet'>
 </head>
 <body>
   <div id="authShell" class="auth-shell">
     <div class="auth-card">
-      <h1>메이크업샵 일정 관리</h1>
+      <h1>라엠 메이크업 일정관리</h1>
       <p>권한이 있는 직원만 로그인해서 일정 조회/작성/수정이 가능합니다.</p>
       <form id="loginForm" class="auth-form">
         <label for="email">이메일</label>
@@ -28,11 +28,11 @@
   <div id="appShell" class="app-shell hidden">
     <header class="topbar">
       <div>
-        <h2>메이크업샵 일정 관리</h2>
+        <h2>라엠 메이크업 일정관리</h2>
         <p id="userMeta"></p>
       </div>
       <div class="top-actions">
-        <button id="printBtn" class="secondary">현재 보기 인쇄</button>
+        <button id="printBtn" class="secondary">월·주·일간 인쇄</button>
         <button id="logoutBtn" class="ghost">로그아웃</button>
       </div>
     </header>
@@ -50,7 +50,7 @@
             </div>
             <div>
               <label for="time">시간</label>
-              <input id="time" type="time" required />
+              <input id="time" type="time" step="1800" required />
             </div>
           </div>
 
@@ -62,6 +62,8 @@
                 <option value="헤어">헤어</option>
                 <option value="메이크업">메이크업</option>
                 <option value="헤어+메이크업">헤어+메이크업</option>
+                <option value="테메">테메</option>
+                <option value="데일리">데일리</option>
                 <option value="기타">기타</option>
               </select>
             </div>
@@ -74,6 +76,17 @@
                 <option value="혼주">혼주</option>
                 <option value="기타">기타</option>
               </select>
+            </div>
+          </div>
+
+          <div class="row two">
+            <div>
+              <label for="brideName">이름(신부)</label>
+              <input id="brideName" type="text" placeholder="예: 김OO" />
+            </div>
+            <div>
+              <label for="groomName">이름(신랑)</label>
+              <input id="groomName" type="text" placeholder="예: 이OO" />
             </div>
           </div>
 

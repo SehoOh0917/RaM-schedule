@@ -392,6 +392,10 @@ button.danger {
   padding: 0.7rem;
 }
 
+.print-all-views {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .layout {
     grid-template-columns: 1fr;
@@ -438,8 +442,14 @@ button.danger {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
   body {
     background: #fff;
+    font-size: 9px;
   }
 
   .topbar,
@@ -463,5 +473,46 @@ button.danger {
     box-shadow: none;
     border: 0;
     padding: 0;
+  }
+
+  body.printing-all-views .schedule-panel {
+    display: none;
+  }
+
+  body.printing-all-views .print-all-views {
+    display: block;
+  }
+
+  .print-all-views h2,
+  .print-all-views h3 {
+    margin: 0 0 0.3rem;
+    line-height: 1.15;
+  }
+
+  .print-meta {
+    margin-bottom: 0.4rem;
+    color: #555;
+    line-height: 1.2;
+  }
+
+  .print-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+    align-items: start;
+  }
+
+  .print-section {
+    border: 1px solid #ccc;
+    padding: 0.3rem 0.4rem;
+    break-inside: avoid;
+  }
+
+  .print-line {
+    line-height: 1.15;
+    margin: 0.05rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
