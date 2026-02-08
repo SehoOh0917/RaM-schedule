@@ -265,7 +265,8 @@ button.danger {
 }
 
 .view-switch,
-.date-nav {
+.date-nav,
+.print-actions {
   display: flex;
   gap: 0.4rem;
 }
@@ -514,7 +515,7 @@ button.danger {
   }
 
   .print-current-view.month .print-section {
-    transform: scale(0.9);
+    transform: scale(0.85);
     transform-origin: top left;
   }
 

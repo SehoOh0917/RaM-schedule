@@ -79,7 +79,8 @@ const viewButtons = [...document.querySelectorAll(".view-btn")];
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const todayBtn = document.getElementById("todayBtn");
-const printBtn = document.getElementById("printBtn");
+const printMonthBtn = document.getElementById("printMonthBtn");
+const printWeekBtn = document.getElementById("printWeekBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const staffFilter = document.getElementById("staffFilter");
 const staffFilterList = document.getElementById("staffFilterList");
@@ -122,6 +123,27 @@ function escapeHTML(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getAssigneeColors(name) {
+  const safe = String(name || "").trim();
+  if (!safe) {
+    return { background: "#f2fbfa", border: "#d4ecea" };
+  }
+  const hue = hashString(safe) % 360;
+  return {
+    background: `hsl(${hue} 70% 92%)`,
+    border: `hsl(${hue} 55% 70%)`,
+  };
 }
 
 function showAuthError(message) {
@@ -304,34 +326,16 @@ function eventRowHTML(event) {
   `;
 }
 
-function formatPrintTitle() {
-  if (state.currentView === "month") {
+function formatPrintTitle(view = state.currentView) {
+  if (view === "month") {
     const monthStart = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
     return `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월 월간 일정`;
   }
-  if (state.currentView === "week") {
+  if (view === "week") {
     const { start, end } = getWeekRange(state.focusDate);
     return `${formatDate(start)} ~ ${formatDate(end)} 주간 일정`;
   }
   return `${formatKoreanDate(state.focusDate)} 일간 일정`;
-}
-
-function renderPrintCurrentView() {
-  const printRoot = document.getElementById("printCurrentView") || document.createElement("section");
-  printRoot.id = "printCurrentView";
-  printRoot.className = `print-current-view ${state.currentView}`;
-  printRoot.innerHTML = `
-    <h2>라엠 메이크업 일정관리</h2>
-    <h3>${escapeHTML(formatPrintTitle())}</h3>
-    <div class="print-meta">출력 기준일: ${formatKoreanDate(new Date())}</div>
-    <section class="print-section">${scheduleView.innerHTML}</section>
-  `;
-
-  if (!printRoot.parentNode) appShell.append(printRoot);
-  document.body.classList.add("printing-current-view");
-  const cleanup = () => document.body.classList.remove("printing-current-view");
-  window.addEventListener("afterprint", cleanup, { once: true });
-  window.print();
 }
 
 function renderMonthView(filteredEvents) {
@@ -357,10 +361,14 @@ function renderMonthView(filteredEvents) {
       const chips = events
         .slice(0, 3)
         .map(
-          (event) =>
-            `<div class="event-chip" data-id="${event.id}">${escapeHTML(event.time)} ${escapeHTML(event.assignee)}${
-              event.brideName ? ` · ${escapeHTML(event.brideName)}` : ""
-            }</div>`
+          (event) => {
+            const colors = getAssigneeColors(event.assignee);
+            return `
+              <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}">
+                ${escapeHTML(event.time)} ${escapeHTML(event.assignee)} ${escapeHTML(event.serviceType)}
+              </div>
+            `;
+          }
         )
         .join("");
       cells.push(`
@@ -424,6 +432,111 @@ function renderView() {
   if (state.currentView === "month") renderMonthView(filteredEvents);
   if (state.currentView === "week") renderWeekView(filteredEvents);
   if (state.currentView === "day") renderDayView(filteredEvents);
+}
+
+function renderMonthPrintHTML(filteredEvents) {
+  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+  const { monthStart, gridStart, gridEnd } = getMonthRange(state.focusDate);
+
+  const eventMap = new Map();
+  filteredEvents.forEach((event) => {
+    const arr = eventMap.get(event.date) || [];
+    arr.push(event);
+    eventMap.set(event.date, arr);
+  });
+
+  let cursor = new Date(gridStart);
+  const rows = [];
+  while (cursor <= gridEnd) {
+    const cells = [];
+    for (let i = 0; i < 7; i += 1) {
+      const key = formatDate(cursor);
+      const events = (eventMap.get(key) || []).sort(byDateTimeAsc);
+      const muted = cursor.getMonth() !== monthStart.getMonth();
+      const chips = events
+        .map((event) => {
+          const colors = getAssigneeColors(event.assignee);
+          return `
+            <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}">
+              ${escapeHTML(event.time)} ${escapeHTML(event.assignee)} ${escapeHTML(event.serviceType)}
+            </div>
+          `;
+        })
+        .join("");
+      cells.push(`
+        <div class="date-cell ${muted ? "muted" : ""}">
+          <div class="date-head">
+            <span>${cursor.getDate()}</span>
+            ${isSameDate(cursor, new Date()) ? "<span>오늘</span>" : ""}
+          </div>
+          <div class="chip-list">
+            ${chips}
+          </div>
+        </div>
+      `);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    rows.push(`<div class="month-row">${cells.join("")}</div>`);
+  }
+
+  return `
+    <div class="month-grid">
+      <div class="weekday-row">${weekdays.map((day) => `<div>${day}</div>`).join("")}</div>
+      ${rows.join("")}
+    </div>
+  `;
+}
+
+function renderWeekPrintHTML(filteredEvents) {
+  const { start, end } = getWeekRange(state.focusDate);
+  const blocks = [];
+  const cursor = new Date(start);
+  for (let i = 0; i < 7; i += 1) {
+    const dateKey = formatDate(cursor);
+    const dayEvents = filteredEvents.filter((event) => event.date === dateKey).sort(byDateTimeAsc);
+    blocks.push(`
+      <section class="day-block">
+        <h4>${formatKoreanDate(cursor)}</h4>
+        ${dayEvents.length ? dayEvents.map(eventRowHTML).join("") : '<p class="empty">등록된 일정 없음</p>'}
+      </section>
+    `);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return `<div class="list-wrap">${blocks.join("")}</div>`;
+}
+
+function renderDayPrintHTML(filteredEvents) {
+  const currentDay = formatDate(state.focusDate);
+  const dayEvents = filteredEvents.filter((event) => event.date === currentDay).sort(byDateTimeAsc);
+  return `
+    <div class="day-block">
+      ${dayEvents.length ? dayEvents.map(eventRowHTML).join("") : '<p class="empty">등록된 일정 없음</p>'}
+    </div>
+  `;
+}
+
+function renderPrintView(view) {
+  const filteredEvents = getVisibleEvents();
+  let content = "";
+  if (view === "month") content = renderMonthPrintHTML(filteredEvents);
+  if (view === "week") content = renderWeekPrintHTML(filteredEvents);
+  if (view === "day") content = renderDayPrintHTML(filteredEvents);
+
+  const printRoot = document.getElementById("printCurrentView") || document.createElement("section");
+  printRoot.id = "printCurrentView";
+  printRoot.className = `print-current-view ${view}`;
+  printRoot.innerHTML = `
+    <h2>라엠 메이크업 일정관리</h2>
+    <h3>${escapeHTML(formatPrintTitle(view))}</h3>
+    <div class="print-meta">출력 기준일: ${formatKoreanDate(new Date())}</div>
+    <section class="print-section">${content}</section>
+  `;
+
+  if (!printRoot.parentNode) appShell.append(printRoot);
+  document.body.classList.add("printing-current-view");
+  const cleanup = () => document.body.classList.remove("printing-current-view");
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
 }
 
 function renderUserManager() {
@@ -782,7 +895,8 @@ function bindEvents() {
     state.selectedStaff = staffFilter.value.trim();
     renderView();
   });
-  printBtn.addEventListener("click", () => renderPrintCurrentView());
+  printMonthBtn.addEventListener("click", () => renderPrintView("month"));
+  printWeekBtn.addEventListener("click", () => renderPrintView("week"));
 
   scheduleView.addEventListener("click", (event) => {
     const target = event.target;
