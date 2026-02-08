@@ -895,8 +895,12 @@ function bindEvents() {
     state.selectedStaff = staffFilter.value.trim();
     renderView();
   });
-  printMonthBtn.addEventListener("click", () => renderPrintView("month"));
-  printWeekBtn.addEventListener("click", () => renderPrintView("week"));
+  if (printMonthBtn) {
+    printMonthBtn.addEventListener("click", () => renderPrintView("month"));
+  }
+  if (printWeekBtn) {
+    printWeekBtn.addEventListener("click", () => renderPrintView("week"));
+  }
 
   scheduleView.addEventListener("click", (event) => {
     const target = event.target;
