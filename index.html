@@ -134,8 +134,7 @@
 
           <div class="row">
             <label for="assignee">담당자</label>
-            <input id="assignee" list="assigneeList" placeholder="예: 지민" required />
-            <datalist id="assigneeList"></datalist>
+            <input id="assignee" type="text" placeholder="예: 지민" required />
           </div>
 
           <div class="row">
@@ -198,9 +197,8 @@
           </div>
           <div>
             <label for="staffFilter">담당자별 보기</label>
-            <select id="staffFilter">
-              <option value="all">전체 담당자</option>
-            </select>
+            <input id="staffFilter" type="text" list="staffFilterList" placeholder="전체 담당자" />
+            <datalist id="staffFilterList"></datalist>
           </div>
         </div>
 

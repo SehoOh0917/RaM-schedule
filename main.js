@@ -36,7 +36,7 @@ const state = {
   currentUser: null,
   currentView: "month",
   focusDate: new Date(),
-  selectedStaff: "all",
+  selectedStaff: "",
   events: [],
   users: [],
   unsubEvents: null,
@@ -82,7 +82,7 @@ const todayBtn = document.getElementById("todayBtn");
 const printBtn = document.getElementById("printBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const staffFilter = document.getElementById("staffFilter");
-const assigneeList = document.getElementById("assigneeList");
+const staffFilterList = document.getElementById("staffFilterList");
 const periodTitle = document.getElementById("periodTitle");
 const scheduleView = document.getElementById("scheduleView");
 
@@ -160,7 +160,9 @@ function populateTimeHourOptions() {
 }
 
 function getSelectedTime() {
-  return `${timeHourInput.value}:${timeMinuteInput.value}`;
+  const hour = timeHourInput.value || "09";
+  const minute = timeMinuteInput.value === "30" ? "30" : "00";
+  return `${hour}:${minute}`;
 }
 
 function setSelectedTime(timeValue) {
@@ -201,8 +203,20 @@ function fillForm(event) {
 
 function getVisibleEvents() {
   const events = [...state.events].sort(byDateTimeAsc);
-  if (state.selectedStaff === "all") return events;
-  return events.filter((event) => event.assignee === state.selectedStaff);
+  const keyword = state.selectedStaff.trim();
+  if (!keyword || keyword === "all" || keyword === "전체") return events;
+  const normalized = keyword.toLowerCase();
+  return events.filter((event) => (event.assignee || "").trim().toLowerCase() === normalized);
+}
+
+function validateSchedulePayload(payload) {
+  if (!payload.date) return "날짜를 선택해 주세요.";
+  if (!payload.time) return "시간을 선택해 주세요.";
+  if (!payload.serviceType) return "구분을 선택해 주세요.";
+  if (!payload.reserverType) return "예약자를 선택해 주세요.";
+  if (!payload.assignee) return "담당자를 입력해 주세요.";
+  if (!isHalfHourTime(payload.time)) return "시간의 분 단위는 00분 또는 30분만 입력할 수 있습니다.";
+  return "";
 }
 
 function upsertLocalEvent(event) {
@@ -227,15 +241,12 @@ function getUniqueStaff() {
 
 function updateStaffOptions() {
   const staff = getUniqueStaff();
-  const options = ['<option value="all">전체 담당자</option>']
-    .concat(staff.map((name) => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`))
-    .join("");
-  staffFilter.innerHTML = options;
-  if (!staff.includes(state.selectedStaff) && state.selectedStaff !== "all") {
-    state.selectedStaff = "all";
+  if (staffFilterList) {
+    staffFilterList.innerHTML = staff.map((name) => `<option value="${escapeHTML(name)}"></option>`).join("");
   }
-  staffFilter.value = state.selectedStaff;
-  assigneeList.innerHTML = staff.map((name) => `<option value="${escapeHTML(name)}"></option>`).join("");
+  if (staffFilter && staffFilter.value !== state.selectedStaff) {
+    staffFilter.value = state.selectedStaff;
+  }
 }
 
 function getMonthRange(baseDate) {
@@ -293,10 +304,6 @@ function eventRowHTML(event) {
   `;
 }
 
-function formatEventPrintLine(event) {
-  return `${event.time} ${event.serviceType} (${event.assignee}) - ${renderEventNames(event)}`;
-}
-
 function formatPrintTitle() {
   if (state.currentView === "month") {
     const monthStart = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
@@ -309,30 +316,7 @@ function formatPrintTitle() {
   return `${formatKoreanDate(state.focusDate)} 일간 일정`;
 }
 
-function getPrintEvents(filteredEvents) {
-  if (state.currentView === "month") {
-    const start = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth(), 1);
-    const end = new Date(state.focusDate.getFullYear(), state.focusDate.getMonth() + 1, 0);
-    return filteredEvents.filter((event) => event.date >= formatDate(start) && event.date <= formatDate(end));
-  }
-  if (state.currentView === "week") {
-    const { start, end } = getWeekRange(state.focusDate);
-    return filteredEvents.filter((event) => event.date >= formatDate(start) && event.date <= formatDate(end));
-  }
-  const dayKey = formatDate(state.focusDate);
-  return filteredEvents.filter((event) => event.date === dayKey);
-}
-
 function renderPrintCurrentView() {
-  const filteredEvents = getVisibleEvents();
-  const printEvents = getPrintEvents(filteredEvents).sort(byDateTimeAsc);
-  const lines =
-    printEvents.length > 0
-      ? printEvents
-          .map((event) => `<div class="print-line">${escapeHTML(`${event.date} · ${formatEventPrintLine(event)}`)}</div>`)
-          .join("")
-      : '<div class="print-line">등록된 일정 없음</div>';
-
   const printRoot = document.getElementById("printCurrentView") || document.createElement("section");
   printRoot.id = "printCurrentView";
   printRoot.className = `print-current-view ${state.currentView}`;
@@ -340,7 +324,7 @@ function renderPrintCurrentView() {
     <h2>라엠 메이크업 일정관리</h2>
     <h3>${escapeHTML(formatPrintTitle())}</h3>
     <div class="print-meta">출력 기준일: ${formatKoreanDate(new Date())}</div>
-    <section class="print-section">${lines}</section>
+    <section class="print-section">${scheduleView.innerHTML}</section>
   `;
 
   if (!printRoot.parentNode) appShell.append(printRoot);
@@ -578,7 +562,7 @@ async function handleAuthUser(user) {
     state.events = [];
     state.users = [];
     state.focusDate = new Date();
-    state.selectedStaff = "all";
+    state.selectedStaff = "";
     setCurrentView("month", false);
     unsubscribeAll();
     setAuthView(false);
@@ -604,7 +588,7 @@ async function handleAuthUser(user) {
 
     setAuthView(true);
     state.focusDate = new Date();
-    state.selectedStaff = "all";
+    state.selectedStaff = "";
     setCurrentView("month", false);
     userMeta.textContent = `${state.currentUser.name} (${state.currentUser.role}) 로그인`;
     hideAuthError();
@@ -713,9 +697,9 @@ function bindEvents() {
       notes: notesInput.value.trim(),
     };
 
-    if (!payload.date || !payload.time || !payload.serviceType || !payload.reserverType || !payload.assignee) return;
-    if (!isHalfHourTime(payload.time)) {
-      alert("시간의 분 단위는 00분 또는 30분만 입력할 수 있습니다.");
+    const validationMessage = validateSchedulePayload(payload);
+    if (validationMessage) {
+      alert(validationMessage);
       return;
     }
 
@@ -794,8 +778,8 @@ function bindEvents() {
     state.focusDate = new Date();
     renderView();
   });
-  staffFilter.addEventListener("change", () => {
-    state.selectedStaff = staffFilter.value;
+  staffFilter.addEventListener("input", () => {
+    state.selectedStaff = staffFilter.value.trim();
     renderView();
   });
   printBtn.addEventListener("click", () => renderPrintCurrentView());
