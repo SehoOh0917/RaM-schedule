@@ -790,111 +790,125 @@ function bindEvents() {
     }
   });
 
-  logoutBtn.addEventListener("click", async () => {
-    await signOut(auth);
-  });
-
-  scheduleForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const payload = {
-      id: eventIdInput.value || undefined,
-      date: dateInput.value,
-      time: getSelectedTime(),
-      serviceType: serviceTypeInput.value,
-      reserverType: reserverTypeInput.value,
-      brideName: brideNameInput.value.trim(),
-      groomName: groomNameInput.value.trim(),
-      brideContact: brideContactInput.value.trim(),
-      groomContact: groomContactInput.value.trim(),
-      assignee: assigneeInput.value.trim(),
-      notes: notesInput.value.trim(),
-    };
-
-    const validationMessage = validateSchedulePayload(payload);
-    if (validationMessage) {
-      alert(validationMessage);
-      return;
-    }
-
-    const previousEvents = [...state.events];
-    const tempId = payload.id || `temp-${Date.now()}`;
-    upsertLocalEvent({
-      id: tempId,
-      date: payload.date,
-      time: payload.time,
-      serviceType: payload.serviceType,
-      reserverType: payload.reserverType,
-      brideName: payload.brideName,
-      groomName: payload.groomName,
-      brideContact: payload.brideContact,
-      groomContact: payload.groomContact,
-      assignee: payload.assignee,
-      notes: payload.notes,
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
     });
-    state.focusDate = new Date(payload.date);
-    renderView();
+  }
 
-    try {
-      const savedId = await upsertEvent(payload);
-      if (!payload.id && savedId !== tempId) {
-        removeLocalEvent(tempId);
-        upsertLocalEvent({
-          id: savedId,
-          date: payload.date,
-          time: payload.time,
-          serviceType: payload.serviceType,
-          reserverType: payload.reserverType,
-          brideName: payload.brideName,
-          groomName: payload.groomName,
-          brideContact: payload.brideContact,
-          groomContact: payload.groomContact,
-          assignee: payload.assignee,
-          notes: payload.notes,
-        });
-        renderView();
+  if (scheduleForm) {
+    scheduleForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = {
+        id: eventIdInput.value || undefined,
+        date: dateInput.value,
+        time: getSelectedTime(),
+        serviceType: serviceTypeInput.value,
+        reserverType: reserverTypeInput.value,
+        brideName: brideNameInput.value.trim(),
+        groomName: groomNameInput.value.trim(),
+        brideContact: brideContactInput.value.trim(),
+        groomContact: groomContactInput.value.trim(),
+        assignee: assigneeInput.value.trim(),
+        notes: notesInput.value.trim(),
+      };
+
+      const validationMessage = validateSchedulePayload(payload);
+      if (validationMessage) {
+        alert(validationMessage);
+        return;
       }
-      resetForm();
-    } catch (error) {
-      state.events = previousEvents;
+
+      const previousEvents = [...state.events];
+      const tempId = payload.id || `temp-${Date.now()}`;
+      upsertLocalEvent({
+        id: tempId,
+        date: payload.date,
+        time: payload.time,
+        serviceType: payload.serviceType,
+        reserverType: payload.reserverType,
+        brideName: payload.brideName,
+        groomName: payload.groomName,
+        brideContact: payload.brideContact,
+        groomContact: payload.groomContact,
+        assignee: payload.assignee,
+        notes: payload.notes,
+      });
+      state.focusDate = new Date(payload.date);
       renderView();
-      alert(normalizeFirebaseError(error));
-    }
-  });
 
-  resetBtn.addEventListener("click", () => resetForm());
-
-  deleteBtn.addEventListener("click", async () => {
-    const id = eventIdInput.value;
-    if (!id) return;
-    const previousEvents = [...state.events];
-    removeLocalEvent(id);
-    renderView();
-    try {
-      await removeEvent(id);
-      resetForm();
-    } catch (error) {
-      state.events = previousEvents;
-      renderView();
-      alert(normalizeFirebaseError(error));
-    }
-  });
-
-  viewButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setCurrentView(button.dataset.view);
+      try {
+        const savedId = await upsertEvent(payload);
+        if (!payload.id && savedId !== tempId) {
+          removeLocalEvent(tempId);
+          upsertLocalEvent({
+            id: savedId,
+            date: payload.date,
+            time: payload.time,
+            serviceType: payload.serviceType,
+            reserverType: payload.reserverType,
+            brideName: payload.brideName,
+            groomName: payload.groomName,
+            brideContact: payload.brideContact,
+            groomContact: payload.groomContact,
+            assignee: payload.assignee,
+            notes: payload.notes,
+          });
+          renderView();
+        }
+        resetForm();
+      } catch (error) {
+        state.events = previousEvents;
+        renderView();
+        alert(normalizeFirebaseError(error));
+      }
     });
-  });
+  }
 
-  prevBtn.addEventListener("click", () => changePeriod("prev"));
-  nextBtn.addEventListener("click", () => changePeriod("next"));
-  todayBtn.addEventListener("click", () => {
-    state.focusDate = new Date();
-    renderView();
-  });
-  staffFilter.addEventListener("input", () => {
-    state.selectedStaff = staffFilter.value.trim();
-    renderView();
-  });
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => resetForm());
+  }
+
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const id = eventIdInput.value;
+      if (!id) return;
+      const previousEvents = [...state.events];
+      removeLocalEvent(id);
+      renderView();
+      try {
+        await removeEvent(id);
+        resetForm();
+      } catch (error) {
+        state.events = previousEvents;
+        renderView();
+        alert(normalizeFirebaseError(error));
+      }
+    });
+  }
+
+  if (viewButtons.length) {
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        setCurrentView(button.dataset.view);
+      });
+    });
+  }
+
+  if (prevBtn) prevBtn.addEventListener("click", () => changePeriod("prev"));
+  if (nextBtn) nextBtn.addEventListener("click", () => changePeriod("next"));
+  if (todayBtn) {
+    todayBtn.addEventListener("click", () => {
+      state.focusDate = new Date();
+      renderView();
+    });
+  }
+  if (staffFilter) {
+    staffFilter.addEventListener("input", () => {
+      state.selectedStaff = staffFilter.value.trim();
+      renderView();
+    });
+  }
   if (printMonthBtn) {
     printMonthBtn.addEventListener("click", () => renderPrintView("month"));
   }
