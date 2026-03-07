@@ -91,7 +91,6 @@
                 <option value="">선택</option>
                 <option value="헤어">헤어</option>
                 <option value="메이크업">메이크업</option>
-                <option value="헤어+메이크업">헤어+메이크업</option>
                 <option value="테메">테메</option>
                 <option value="촬영">촬영</option>
                 <option value="본식">본식</option>
@@ -100,14 +99,8 @@
               </select>
             </div>
             <div>
-              <label for="reserverType">예약자</label>
-              <select id="reserverType" required>
-                <option value="">선택</option>
-                <option value="신부">신부</option>
-                <option value="신랑">신랑</option>
-                <option value="혼주">혼주</option>
-                <option value="기타">기타</option>
-              </select>
+              <label for="company">업체</label>
+              <input id="company" type="text" placeholder="예: 라엠스튜디오" required />
             </div>
           </div>
 
@@ -136,6 +129,17 @@
           <div class="row">
             <label for="assignee">담당자</label>
             <input id="assignee" type="text" placeholder="예: 지민" required />
+          </div>
+
+          <div class="row two">
+            <div>
+              <label for="location">장소</label>
+              <input id="location" type="text" placeholder="예: 강남 스튜디오" />
+            </div>
+            <div>
+              <label for="eventTime">행사 시간</label>
+              <input id="eventTime" type="text" placeholder="예: 10:30~13:00" />
+            </div>
           </div>
 
           <div class="row">
@@ -201,9 +205,9 @@
             <button id="printWeekBtn" class="secondary">주간 인쇄</button>
           </div>
           <div>
-            <label for="staffFilter">담당자별 보기</label>
-            <input id="staffFilter" type="text" list="staffFilterList" placeholder="전체 담당자" />
-            <datalist id="staffFilterList"></datalist>
+            <label for="companyFilter">업체별 보기</label>
+            <input id="companyFilter" type="text" list="companyFilterList" placeholder="전체 업체" />
+            <datalist id="companyFilterList"></datalist>
           </div>
         </div>
 

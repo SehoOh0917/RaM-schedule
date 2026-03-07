@@ -36,7 +36,7 @@ const state = {
   currentUser: null,
   currentView: "month",
   focusDate: new Date(),
-  selectedStaff: "",
+  selectedCompany: "",
   events: [],
   users: [],
   unsubEvents: null,
@@ -56,12 +56,14 @@ const dateInput = document.getElementById("date");
 const timeHourInput = document.getElementById("timeHour");
 const timeMinuteInput = document.getElementById("timeMinute");
 const serviceTypeInput = document.getElementById("serviceType");
-const reserverTypeInput = document.getElementById("reserverType");
+const companyInput = document.getElementById("company");
 const brideNameInput = document.getElementById("brideName");
 const groomNameInput = document.getElementById("groomName");
 const brideContactInput = document.getElementById("brideContact");
 const groomContactInput = document.getElementById("groomContact");
 const assigneeInput = document.getElementById("assignee");
+const locationInput = document.getElementById("location");
+const eventTimeInput = document.getElementById("eventTime");
 const notesInput = document.getElementById("notes");
 const deleteBtn = document.getElementById("deleteBtn");
 const resetBtn = document.getElementById("resetBtn");
@@ -82,8 +84,8 @@ const todayBtn = document.getElementById("todayBtn");
 const printMonthBtn = document.getElementById("printMonthBtn");
 const printWeekBtn = document.getElementById("printWeekBtn");
 const logoutBtn = document.getElementById("logoutBtn");
-const staffFilter = document.getElementById("staffFilter");
-const staffFilterList = document.getElementById("staffFilterList");
+const companyFilter = document.getElementById("companyFilter");
+const companyFilterList = document.getElementById("companyFilterList");
 const periodTitle = document.getElementById("periodTitle");
 const scheduleView = document.getElementById("scheduleView");
 
@@ -134,7 +136,7 @@ function hashString(value) {
   return Math.abs(hash);
 }
 
-function getAssigneeColors(name) {
+function getCompanyColors(name) {
   const safe = String(name || "").trim();
   if (!safe) {
     return { background: "#f2fbfa", border: "#d4ecea" };
@@ -213,29 +215,31 @@ function fillForm(event) {
   dateInput.value = event.date;
   setSelectedTime(event.time);
   serviceTypeInput.value = event.serviceType;
-  reserverTypeInput.value = event.reserverType;
+  companyInput.value = event.company || event.reserverType || "";
   brideNameInput.value = event.brideName || "";
   groomNameInput.value = event.groomName || "";
   brideContactInput.value = event.brideContact || "";
   groomContactInput.value = event.groomContact || "";
   assigneeInput.value = event.assignee;
+  locationInput.value = event.location || "";
+  eventTimeInput.value = event.eventTime || "";
   notesInput.value = event.notes || "";
   deleteBtn.classList.remove("hidden");
 }
 
 function getVisibleEvents() {
   const events = [...state.events].sort(byDateTimeAsc);
-  const keyword = state.selectedStaff.trim();
+  const keyword = state.selectedCompany.trim();
   if (!keyword || keyword === "all" || keyword === "전체") return events;
   const normalized = keyword.toLowerCase();
-  return events.filter((event) => (event.assignee || "").trim().toLowerCase() === normalized);
+  return events.filter((event) => (event.company || event.reserverType || "").trim().toLowerCase() === normalized);
 }
 
 function validateSchedulePayload(payload) {
   if (!payload.date) return "날짜를 선택해 주세요.";
   if (!payload.time) return "시간을 선택해 주세요.";
   if (!payload.serviceType) return "구분을 선택해 주세요.";
-  if (!payload.reserverType) return "예약자를 선택해 주세요.";
+  if (!payload.company) return "업체를 입력해 주세요.";
   if (!payload.assignee) return "담당자를 입력해 주세요.";
   if (!isHalfHourTime(payload.time)) return "시간의 분 단위는 00분 또는 30분만 입력할 수 있습니다.";
   return "";
@@ -254,20 +258,19 @@ function removeLocalEvent(id) {
   state.events = state.events.filter((event) => event.id !== id);
 }
 
-function getUniqueStaff() {
-  const activeUsers = state.users.filter((user) => user.active).map((user) => user.name);
-  const fromEvents = state.events.map((event) => event.assignee).filter(Boolean);
-  const set = new Set([...activeUsers, ...fromEvents]);
+function getUniqueCompanies() {
+  const fromEvents = state.events.map((event) => event.company || event.reserverType).filter(Boolean);
+  const set = new Set(fromEvents);
   return [...set].sort((a, b) => a.localeCompare(b, "ko"));
 }
 
-function updateStaffOptions() {
-  const staff = getUniqueStaff();
-  if (staffFilterList) {
-    staffFilterList.innerHTML = staff.map((name) => `<option value="${escapeHTML(name)}"></option>`).join("");
+function updateCompanyOptions() {
+  const companies = getUniqueCompanies();
+  if (companyFilterList) {
+    companyFilterList.innerHTML = companies.map((name) => `<option value="${escapeHTML(name)}"></option>`).join("");
   }
-  if (staffFilter && staffFilter.value !== state.selectedStaff) {
-    staffFilter.value = state.selectedStaff;
+  if (companyFilter && companyFilter.value !== state.selectedCompany) {
+    companyFilter.value = state.selectedCompany;
   }
 }
 
@@ -314,12 +317,14 @@ function setCurrentView(view, shouldRender = true) {
 
 function eventRowHTML(event) {
   const contacts = [event.brideContact, event.groomContact].filter(Boolean).join(" / ");
+  const company = event.company || event.reserverType || "-";
   return `
     <article class="event-row" data-id="${event.id}">
       <div class="event-main">
-        <span>${escapeHTML(event.time)} · ${escapeHTML(event.serviceType)} · ${escapeHTML(event.assignee)}</span>
+        <span>${escapeHTML(event.time)} · ${escapeHTML(company)} · ${escapeHTML(event.serviceType)}</span>
       </div>
-      <div class="event-sub">예약자: ${escapeHTML(event.reserverType)} · 이름(신부/신랑): ${escapeHTML(renderEventNames(event))}</div>
+      <div class="event-sub">업체: ${escapeHTML(company)} · 이름(신부/신랑): ${escapeHTML(renderEventNames(event))}</div>
+      <div class="event-sub">장소: ${escapeHTML(event.location || "-")} · 행사 시간: ${escapeHTML(event.eventTime || "-")}</div>
       <div class="event-sub">연락처(신부/신랑): ${contacts ? escapeHTML(contacts) : "-"}</div>
       ${event.notes ? `<div class="event-sub">특이사항: ${escapeHTML(event.notes)}</div>` : ""}
     </article>
@@ -362,10 +367,10 @@ function renderMonthView(filteredEvents) {
         .slice(0, 3)
         .map(
           (event) => {
-            const colors = getAssigneeColors(event.assignee);
+            const colors = getCompanyColors(event.company || event.reserverType);
             return `
               <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}">
-                ${escapeHTML(event.time)} ${escapeHTML(event.assignee)} ${escapeHTML(event.serviceType)}
+                ${escapeHTML(event.company || event.reserverType || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
               </div>
             `;
           }
@@ -427,7 +432,7 @@ function renderDayView(filteredEvents) {
 }
 
 function renderView() {
-  updateStaffOptions();
+  updateCompanyOptions();
   const filteredEvents = getVisibleEvents();
   if (state.currentView === "month") renderMonthView(filteredEvents);
   if (state.currentView === "week") renderWeekView(filteredEvents);
@@ -455,10 +460,10 @@ function renderMonthPrintHTML(filteredEvents) {
       const muted = cursor.getMonth() !== monthStart.getMonth();
       const chips = events
         .map((event) => {
-          const colors = getAssigneeColors(event.assignee);
+          const colors = getCompanyColors(event.company || event.reserverType);
           return `
             <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}">
-              ${escapeHTML(event.time)} ${escapeHTML(event.assignee)} ${escapeHTML(event.serviceType)}
+              ${escapeHTML(event.company || event.reserverType || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
             </div>
           `;
         })
@@ -637,7 +642,7 @@ function subscribeUsers() {
       (snap) => {
         state.users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         renderUserManager();
-        updateStaffOptions();
+        updateCompanyOptions();
       },
       (error) => {
         console.error(error);
@@ -653,7 +658,7 @@ function subscribeUsers() {
     (snapshot) => {
       state.users = snapshot.exists() ? [{ id: snapshot.id, ...snapshot.data() }] : [];
       renderUserManager();
-      updateStaffOptions();
+      updateCompanyOptions();
     },
     (error) => {
       console.error(error);
@@ -675,7 +680,7 @@ async function handleAuthUser(user) {
     state.events = [];
     state.users = [];
     state.focusDate = new Date();
-    state.selectedStaff = "";
+    state.selectedCompany = "";
     setCurrentView("month", false);
     unsubscribeAll();
     setAuthView(false);
@@ -701,7 +706,7 @@ async function handleAuthUser(user) {
 
     setAuthView(true);
     state.focusDate = new Date();
-    state.selectedStaff = "";
+    state.selectedCompany = "";
     setCurrentView("month", false);
     userMeta.textContent = `${state.currentUser.name} (${state.currentUser.role}) 로그인`;
     hideAuthError();
@@ -737,12 +742,14 @@ async function upsertEvent(payload) {
       date: payload.date,
       time: payload.time,
       serviceType: payload.serviceType,
-      reserverType: payload.reserverType,
+      company: payload.company,
       brideName: payload.brideName,
       groomName: payload.groomName,
       brideContact: payload.brideContact,
       groomContact: payload.groomContact,
       assignee: payload.assignee,
+      location: payload.location,
+      eventTime: payload.eventTime,
       notes: payload.notes,
       updatedAt: serverTimestamp(),
       updatedByUid: state.currentUser.uid,
@@ -755,12 +762,14 @@ async function upsertEvent(payload) {
     date: payload.date,
     time: payload.time,
     serviceType: payload.serviceType,
-    reserverType: payload.reserverType,
+    company: payload.company,
     brideName: payload.brideName,
     groomName: payload.groomName,
     brideContact: payload.brideContact,
     groomContact: payload.groomContact,
     assignee: payload.assignee,
+    location: payload.location,
+    eventTime: payload.eventTime,
     notes: payload.notes,
     createdAt: serverTimestamp(),
     createdByUid: state.currentUser.uid,
@@ -799,19 +808,21 @@ function bindEvents() {
   if (scheduleForm) {
     scheduleForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const payload = {
-        id: eventIdInput.value || undefined,
-        date: dateInput.value,
-        time: getSelectedTime(),
-        serviceType: serviceTypeInput.value,
-        reserverType: reserverTypeInput.value,
-        brideName: brideNameInput.value.trim(),
-        groomName: groomNameInput.value.trim(),
-        brideContact: brideContactInput.value.trim(),
-        groomContact: groomContactInput.value.trim(),
-        assignee: assigneeInput.value.trim(),
-        notes: notesInput.value.trim(),
-      };
+    const payload = {
+      id: eventIdInput.value || undefined,
+      date: dateInput.value,
+      time: getSelectedTime(),
+      serviceType: serviceTypeInput.value,
+      company: companyInput.value.trim(),
+      brideName: brideNameInput.value.trim(),
+      groomName: groomNameInput.value.trim(),
+      brideContact: brideContactInput.value.trim(),
+      groomContact: groomContactInput.value.trim(),
+      assignee: assigneeInput.value.trim(),
+      location: locationInput.value.trim(),
+      eventTime: eventTimeInput.value.trim(),
+      notes: notesInput.value.trim(),
+    };
 
       const validationMessage = validateSchedulePayload(payload);
       if (validationMessage) {
@@ -826,12 +837,14 @@ function bindEvents() {
         date: payload.date,
         time: payload.time,
         serviceType: payload.serviceType,
-        reserverType: payload.reserverType,
+        company: payload.company,
         brideName: payload.brideName,
         groomName: payload.groomName,
         brideContact: payload.brideContact,
         groomContact: payload.groomContact,
         assignee: payload.assignee,
+        location: payload.location,
+        eventTime: payload.eventTime,
         notes: payload.notes,
       });
       state.focusDate = new Date(payload.date);
@@ -846,12 +859,14 @@ function bindEvents() {
             date: payload.date,
             time: payload.time,
             serviceType: payload.serviceType,
-            reserverType: payload.reserverType,
+            company: payload.company,
             brideName: payload.brideName,
             groomName: payload.groomName,
             brideContact: payload.brideContact,
             groomContact: payload.groomContact,
             assignee: payload.assignee,
+            location: payload.location,
+            eventTime: payload.eventTime,
             notes: payload.notes,
           });
           renderView();
@@ -903,9 +918,9 @@ function bindEvents() {
       renderView();
     });
   }
-  if (staffFilter) {
-    staffFilter.addEventListener("input", () => {
-      state.selectedStaff = staffFilter.value.trim();
+  if (companyFilter) {
+    companyFilter.addEventListener("input", () => {
+      state.selectedCompany = companyFilter.value.trim();
       renderView();
     });
   }
