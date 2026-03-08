@@ -215,7 +215,7 @@ function fillForm(event) {
   dateInput.value = event.date;
   setSelectedTime(event.time);
   serviceTypeInput.value = event.serviceType;
-  companyInput.value = event.company || event.reserverType || "";
+  companyInput.value = event.company || "";
   brideNameInput.value = event.brideName || "";
   groomNameInput.value = event.groomName || "";
   brideContactInput.value = event.brideContact || "";
@@ -232,7 +232,7 @@ function getVisibleEvents() {
   const keyword = state.selectedCompany.trim();
   if (!keyword || keyword === "all" || keyword === "전체") return events;
   const normalized = keyword.toLowerCase();
-  return events.filter((event) => (event.company || event.reserverType || "").trim().toLowerCase() === normalized);
+  return events.filter((event) => (event.company || "").trim().toLowerCase() === normalized);
 }
 
 function validateSchedulePayload(payload) {
@@ -259,7 +259,7 @@ function removeLocalEvent(id) {
 }
 
 function getUniqueCompanies() {
-  const fromEvents = state.events.map((event) => event.company || event.reserverType).filter(Boolean);
+  const fromEvents = state.events.map((event) => event.company).filter(Boolean);
   const set = new Set(fromEvents);
   return [...set].sort((a, b) => a.localeCompare(b, "ko"));
 }
@@ -317,7 +317,7 @@ function setCurrentView(view, shouldRender = true) {
 
 function eventRowHTML(event) {
   const contacts = [event.brideContact, event.groomContact].filter(Boolean).join(" / ");
-  const company = event.company || event.reserverType || "-";
+  const company = event.company || "-";
   return `
     <article class="event-row" data-id="${event.id}">
       <div class="event-main">
@@ -367,10 +367,10 @@ function renderMonthView(filteredEvents) {
         .slice(0, 3)
         .map(
           (event) => {
-            const colors = getCompanyColors(event.company || event.reserverType);
+            const colors = getCompanyColors(event.company);
             return `
               <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}">
-                ${escapeHTML(event.company || event.reserverType || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
+                ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
               </div>
             `;
           }
@@ -460,10 +460,10 @@ function renderMonthPrintHTML(filteredEvents) {
       const muted = cursor.getMonth() !== monthStart.getMonth();
       const chips = events
         .map((event) => {
-          const colors = getCompanyColors(event.company || event.reserverType);
+          const colors = getCompanyColors(event.company);
           return `
             <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}">
-              ${escapeHTML(event.company || event.reserverType || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
+              ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
             </div>
           `;
         })
