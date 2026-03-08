@@ -37,6 +37,7 @@ const state = {
   currentView: "month",
   focusDate: new Date(),
   selectedCompany: "",
+  selectedBrideName: "",
   events: [],
   users: [],
   unsubEvents: null,
@@ -86,6 +87,7 @@ const printWeekBtn = document.getElementById("printWeekBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const companyFilter = document.getElementById("companyFilter");
 const companyFilterList = document.getElementById("companyFilterList");
+const brideNameFilter = document.getElementById("brideNameFilter");
 const periodTitle = document.getElementById("periodTitle");
 const scheduleView = document.getElementById("scheduleView");
 
@@ -258,11 +260,16 @@ function fillForm(event) {
 }
 
 function getVisibleEvents() {
-  const events = [...state.events].sort(byDateTimeAsc);
-  const keyword = state.selectedCompany.trim();
-  if (!keyword || keyword === "all" || keyword === "전체") return events;
-  const normalized = keyword.toLowerCase();
-  return events.filter((event) => (event.company || "").trim().toLowerCase() === normalized);
+  let events = [...state.events].sort(byDateTimeAsc);
+  const companyKeyword = state.selectedCompany.trim();
+  if (companyKeyword && companyKeyword !== "all" && companyKeyword !== "전체") {
+    const normalizedCompany = companyKeyword.toLowerCase();
+    events = events.filter((event) => (event.company || "").trim().toLowerCase() === normalizedCompany);
+  }
+
+  const brideKeyword = state.selectedBrideName.trim().toLowerCase();
+  if (!brideKeyword) return events;
+  return events.filter((event) => (event.brideName || "").trim().toLowerCase().includes(brideKeyword));
 }
 
 function validateSchedulePayload(payload) {
@@ -301,6 +308,9 @@ function updateCompanyOptions() {
   }
   if (companyFilter && companyFilter.value !== state.selectedCompany) {
     companyFilter.value = state.selectedCompany;
+  }
+  if (brideNameFilter && brideNameFilter.value !== state.selectedBrideName) {
+    brideNameFilter.value = state.selectedBrideName;
   }
 }
 
@@ -713,6 +723,7 @@ async function handleAuthUser(user) {
     state.users = [];
     state.focusDate = new Date();
     state.selectedCompany = "";
+    state.selectedBrideName = "";
     setCurrentView("month", false);
     unsubscribeAll();
     setAuthView(false);
@@ -739,6 +750,7 @@ async function handleAuthUser(user) {
     setAuthView(true);
     state.focusDate = new Date();
     state.selectedCompany = "";
+    state.selectedBrideName = "";
     setCurrentView("month", false);
     userMeta.textContent = `${state.currentUser.name} (${state.currentUser.role}) 로그인`;
     hideAuthError();
@@ -953,6 +965,12 @@ function bindEvents() {
   if (companyFilter) {
     companyFilter.addEventListener("input", () => {
       state.selectedCompany = companyFilter.value.trim();
+      renderView();
+    });
+  }
+  if (brideNameFilter) {
+    brideNameFilter.addEventListener("input", () => {
+      state.selectedBrideName = brideNameFilter.value.trim();
       renderView();
     });
   }
