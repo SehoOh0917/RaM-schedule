@@ -136,26 +136,46 @@ function hashString(value) {
   return Math.abs(hash);
 }
 
-function getCompanyColors(name) {
+const COMPANY_COLOR_PALETTE = [
+  { background: "#fee2e2", border: "#dc2626", text: "#7f1d1d" },
+  { background: "#ffedd5", border: "#ea580c", text: "#7c2d12" },
+  { background: "#fef3c7", border: "#d97706", text: "#78350f" },
+  { background: "#ecfccb", border: "#65a30d", text: "#365314" },
+  { background: "#dcfce7", border: "#16a34a", text: "#14532d" },
+  { background: "#ccfbf1", border: "#0d9488", text: "#134e4a" },
+  { background: "#cffafe", border: "#0891b2", text: "#164e63" },
+  { background: "#dbeafe", border: "#2563eb", text: "#1e3a8a" },
+  { background: "#e0e7ff", border: "#4f46e5", text: "#312e81" },
+  { background: "#ede9fe", border: "#7c3aed", text: "#4c1d95" },
+  { background: "#f5d0fe", border: "#c026d3", text: "#701a75" },
+  { background: "#fce7f3", border: "#db2777", text: "#831843" },
+  { background: "#ffe4e6", border: "#e11d48", text: "#881337" },
+  { background: "#fde68a", border: "#ca8a04", text: "#713f12" },
+  { background: "#bbf7d0", border: "#22c55e", text: "#14532d" },
+  { background: "#bae6fd", border: "#0284c7", text: "#0c4a6e" },
+  { background: "#c7d2fe", border: "#4338ca", text: "#312e81" },
+  { background: "#ddd6fe", border: "#6d28d9", text: "#581c87" },
+  { background: "#fecdd3", border: "#e11d48", text: "#9f1239" },
+  { background: "#fed7aa", border: "#ea580c", text: "#9a3412" },
+];
+
+function getCompanyColorMap(events = state.events) {
+  const companies = [...new Set(events.map((event) => String(event.company || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ko"));
+  const colorMap = new Map();
+  companies.forEach((company, index) => {
+    colorMap.set(company, COMPANY_COLOR_PALETTE[index % COMPANY_COLOR_PALETTE.length]);
+  });
+  return colorMap;
+}
+
+function getCompanyColors(name, colorMap = null) {
   const safe = String(name || "").trim();
   if (!safe) {
     return { background: "#f2fbfa", border: "#d4ecea", text: "#134e4a" };
   }
-  const palette = [
-    { background: "#fee2e2", border: "#ef4444", text: "#7f1d1d" },
-    { background: "#ffedd5", border: "#f97316", text: "#7c2d12" },
-    { background: "#fef3c7", border: "#f59e0b", text: "#78350f" },
-    { background: "#ecfccb", border: "#84cc16", text: "#365314" },
-    { background: "#dcfce7", border: "#22c55e", text: "#14532d" },
-    { background: "#ccfbf1", border: "#14b8a6", text: "#134e4a" },
-    { background: "#cffafe", border: "#06b6d4", text: "#164e63" },
-    { background: "#dbeafe", border: "#3b82f6", text: "#1e3a8a" },
-    { background: "#e0e7ff", border: "#6366f1", text: "#312e81" },
-    { background: "#f5d0fe", border: "#d946ef", text: "#701a75" },
-    { background: "#fce7f3", border: "#ec4899", text: "#831843" },
-    { background: "#ffe4e6", border: "#f43f5e", text: "#881337" },
-  ];
-  return palette[hashString(safe) % palette.length];
+  if (colorMap && colorMap.has(safe)) return colorMap.get(safe);
+  return COMPANY_COLOR_PALETTE[hashString(safe) % COMPANY_COLOR_PALETTE.length];
 }
 
 function showAuthError(message) {
@@ -357,6 +377,7 @@ function renderMonthView(filteredEvents) {
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   const { monthStart, gridStart, gridEnd } = getMonthRange(state.focusDate);
   periodTitle.textContent = `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월 월간 일정`;
+  const companyColorMap = getCompanyColorMap(state.events);
 
   const eventMap = new Map();
   filteredEvents.forEach((event) => {
@@ -377,7 +398,7 @@ function renderMonthView(filteredEvents) {
         .slice(0, 3)
         .map(
           (event) => {
-            const colors = getCompanyColors(event.company);
+            const colors = getCompanyColors(event.company, companyColorMap);
             return `
               <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}; color:${colors.text}">
                 ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
@@ -452,6 +473,7 @@ function renderView() {
 function renderMonthPrintHTML(filteredEvents) {
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   const { monthStart, gridStart, gridEnd } = getMonthRange(state.focusDate);
+  const companyColorMap = getCompanyColorMap(state.events);
 
   const eventMap = new Map();
   filteredEvents.forEach((event) => {
@@ -470,7 +492,7 @@ function renderMonthPrintHTML(filteredEvents) {
       const muted = cursor.getMonth() !== monthStart.getMonth();
       const chips = events
         .map((event) => {
-          const colors = getCompanyColors(event.company);
+          const colors = getCompanyColors(event.company, companyColorMap);
           return `
             <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}; color:${colors.text}">
               ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
