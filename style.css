@@ -340,6 +340,7 @@ button.danger {
 .event-chip {
   border: 1px solid #d4ecea;
   background: #f2fbfa;
+  color: #134e4a;
   border-radius: 8px;
   padding: 0.25rem 0.35rem;
   font-size: 0.74rem;
@@ -347,7 +348,7 @@ button.danger {
 }
 
 .event-chip:hover {
-  background: #dff6f4;
+  filter: brightness(0.96);
 }
 
 .list-wrap {

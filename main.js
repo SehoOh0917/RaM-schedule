@@ -139,13 +139,23 @@ function hashString(value) {
 function getCompanyColors(name) {
   const safe = String(name || "").trim();
   if (!safe) {
-    return { background: "#f2fbfa", border: "#d4ecea" };
+    return { background: "#f2fbfa", border: "#d4ecea", text: "#134e4a" };
   }
-  const hue = hashString(safe) % 360;
-  return {
-    background: `hsl(${hue} 70% 92%)`,
-    border: `hsl(${hue} 55% 70%)`,
-  };
+  const palette = [
+    { background: "#fee2e2", border: "#ef4444", text: "#7f1d1d" },
+    { background: "#ffedd5", border: "#f97316", text: "#7c2d12" },
+    { background: "#fef3c7", border: "#f59e0b", text: "#78350f" },
+    { background: "#ecfccb", border: "#84cc16", text: "#365314" },
+    { background: "#dcfce7", border: "#22c55e", text: "#14532d" },
+    { background: "#ccfbf1", border: "#14b8a6", text: "#134e4a" },
+    { background: "#cffafe", border: "#06b6d4", text: "#164e63" },
+    { background: "#dbeafe", border: "#3b82f6", text: "#1e3a8a" },
+    { background: "#e0e7ff", border: "#6366f1", text: "#312e81" },
+    { background: "#f5d0fe", border: "#d946ef", text: "#701a75" },
+    { background: "#fce7f3", border: "#ec4899", text: "#831843" },
+    { background: "#ffe4e6", border: "#f43f5e", text: "#881337" },
+  ];
+  return palette[hashString(safe) % palette.length];
 }
 
 function showAuthError(message) {
@@ -369,7 +379,7 @@ function renderMonthView(filteredEvents) {
           (event) => {
             const colors = getCompanyColors(event.company);
             return `
-              <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}">
+              <div class="event-chip" data-id="${event.id}" style="background:${colors.background}; border-color:${colors.border}; color:${colors.text}">
                 ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
               </div>
             `;
@@ -462,7 +472,7 @@ function renderMonthPrintHTML(filteredEvents) {
         .map((event) => {
           const colors = getCompanyColors(event.company);
           return `
-            <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}">
+            <div class="event-chip" style="background:${colors.background}; border-color:${colors.border}; color:${colors.text}">
               ${escapeHTML(event.company || "-")} ${escapeHTML(event.location || "-")} ${escapeHTML(event.eventTime || "-")} ${escapeHTML(event.serviceType)}
             </div>
           `;
