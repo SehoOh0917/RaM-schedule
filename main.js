@@ -405,7 +405,6 @@ function renderMonthView(filteredEvents) {
       const events = (eventMap.get(key) || []).sort(byDateTimeAsc);
       const muted = cursor.getMonth() !== monthStart.getMonth();
       const chips = events
-        .slice(0, 3)
         .map(
           (event) => {
             const colors = getCompanyColors(event.company, companyColorMap);
@@ -425,7 +424,6 @@ function renderMonthView(filteredEvents) {
           </div>
           <div class="chip-list">
             ${chips}
-            ${events.length > 3 ? `<div class="event-chip">+${events.length - 3}건</div>` : ""}
           </div>
         </div>
       `);
