@@ -84,6 +84,7 @@ const nextBtn = document.getElementById("nextBtn");
 const todayBtn = document.getElementById("todayBtn");
 const printMonthBtn = document.getElementById("printMonthBtn");
 const printWeekBtn = document.getElementById("printWeekBtn");
+const printDayBtn = document.getElementById("printDayBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const companyFilter = document.getElementById("companyFilter");
 const companyFilterList = document.getElementById("companyFilterList");
@@ -977,6 +978,9 @@ function bindEvents() {
   }
   if (printWeekBtn) {
     printWeekBtn.addEventListener("click", () => renderPrintView("week"));
+  }
+  if (printDayBtn) {
+    printDayBtn.addEventListener("click", () => renderPrintView("day"));
   }
 
   scheduleView.addEventListener("click", (event) => {
