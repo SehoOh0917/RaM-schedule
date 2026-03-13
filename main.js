@@ -417,7 +417,7 @@ function renderMonthView(filteredEvents) {
         )
         .join("");
       cells.push(`
-        <div class="date-cell ${muted ? "muted" : ""}">
+        <div class="date-cell ${muted ? "muted" : ""}" data-date="${key}">
           <div class="date-head">
             <span>${cursor.getDate()}</span>
             ${isSameDate(cursor, new Date()) ? "<span>오늘</span>" : ""}
@@ -982,10 +982,20 @@ function bindEvents() {
   scheduleView.addEventListener("click", (event) => {
     const target = event.target;
     const eventEl = target.closest("[data-id]");
-    if (!eventEl) return;
-    const found = state.events.find((item) => item.id === eventEl.dataset.id);
-    if (!found) return;
-    fillForm(found);
+    if (eventEl) {
+      const found = state.events.find((item) => item.id === eventEl.dataset.id);
+      if (!found) return;
+      fillForm(found);
+      return;
+    }
+
+    if (state.currentView !== "month") return;
+    const dateCell = target.closest(".date-cell[data-date]");
+    if (!dateCell) return;
+    const selectedDate = dateCell.dataset.date;
+    if (!selectedDate) return;
+    state.focusDate = new Date(`${selectedDate}T00:00:00`);
+    setCurrentView("day");
   });
 
   staffForm.addEventListener("submit", async (event) => {

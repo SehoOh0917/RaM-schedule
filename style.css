@@ -312,6 +312,7 @@ button.danger {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   padding: 0.35rem;
+  cursor: pointer;
 }
 
 .month-row .date-cell:last-child,
